@@ -5,89 +5,105 @@ function eval() {
 
 function expressionCalculator(expr) {
   // write your solution here
-  //   expr = expr.replace(/\s/g, "");
-  //   const exprArr = expr.split("");
   const exprArr = [];
   let curDigit = "";
+  const priority = Object.freeze({
+    "-": 0,
+    "+": 0,
+    "/": 1,
+    "*": 1,
+    "(": -1,
+    ")": -1
+  });
+
   for (let index = 0; index < expr.length; index++) {
     element = expr[index];
     if (element === " ") {
       continue;
     }
-    if (
-      element === "+" ||
-      element === "-" ||
-      element === "*" ||
-      element === "/"
-    ) {
-      exprArr.push(curDigit);
+    if (priority.hasOwnProperty(element)) {
+      if (curDigit !== "") {
+        exprArr.push(parseInt(curDigit, 10));
+      }
       exprArr.push(element);
       curDigit = "";
     } else {
       curDigit += element;
     }
   }
-  exprArr.push(curDigit);
-
-  const expressions = [];
-  let ret = 0;
-  while (true) {
-    let openBracketIndex = exprArr.lastIndexOf(element => element === "(");
-    let closeBracketIndex = exprArr.indexOf(element => element === ")");
-    if (openBracketIndex === -1 || closeBracketIndex === -1) {
-      break;
-    }
-    expressions.push(
-      exprArr.splice(openBracketIndex, closeBracketIndex - openBracketIndex + 1)
-    );
+  if (curDigit !== "") {
+    exprArr.push(parseInt(curDigit, 10));
   }
 
-  console.log("exprArr", exprArr);
-  expressions.push(exprArr);
-  console.log("expressions:", expressions);
-
-  expressions.forEach(element => {
-    evalOper(element, "*");
-    evalOper(element, "/");
-    evalOper(element, "+");
-    evalOper(element, "-");
-  });
-
-  expressions.forEach(element => {
-    ret += +element;
-  });
-
-  return ret;
-}
-
-function evalOper(exprArr, oper) {
-  while (true) {
-    let operIndex = exprArr.findIndex(element => element === oper);
-    if (operIndex === -1) {
-      return;
+  let RPNexpr = [];
+  const stack = [];
+  for (const element of exprArr) {
+    if (typeof element === "number") {
+      RPNexpr.push(element);
+      continue;
     }
-
-    let leftOperand = exprArr[operIndex - 1];
-    let rightOperand = exprArr[operIndex + 1];
-    if (oper === "/" && rightOperand === "0") {
-      throw new TypeError("TypeError: Division by zero.");
+    if (element === "(") {
+      stack.push(element);
+      continue;
     }
-
-    switch (oper) {
-      case "*":
-        exprArr.splice(operIndex - 1, 3, +leftOperand * +rightOperand);
-        break;
-      case "/":
-        exprArr.splice(operIndex - 1, 3, +leftOperand / +rightOperand);
-        break;
-      case "+":
-        exprArr.splice(operIndex - 1, 3, +leftOperand + +rightOperand);
-        break;
-      case "-":
-        exprArr.splice(operIndex - 1, 3, +leftOperand - +rightOperand);
-        break;
+    if (element === ")") {
+      while (stack[stack.length - 1] !== "(") {
+        if (stack.length === 0) {
+          throw new Error("ExpressionError: Brackets must be paired");
+        }
+        RPNexpr.push(stack.pop());
+      }
+      stack.pop();
+      continue;
+    }
+    if (priority.hasOwnProperty(element)) {
+      while (priority.hasOwnProperty(stack[stack.length - 1])) {
+        if (priority[stack[stack.length - 1]] >= priority[element]) {
+          RPNexpr.push(stack.pop());
+        } else {
+          break;
+        }
+      }
+      stack.push(element);
     }
   }
+
+  while (stack.length > 0) {
+    RPNexpr.push(stack.pop());
+  }
+
+  stack.length = 0;
+  for (const element of RPNexpr) {
+    if (element === "(") {
+      throw new Error("ExpressionError: Brackets must be paired");
+    }
+    if (typeof element === "number") {
+      stack.push(element);
+    }
+
+    if (priority.hasOwnProperty(element)) {
+      const rightOperand = stack.pop();
+      const leftOperand = stack.pop();
+      switch (element) {
+        case "+":
+          stack.push(leftOperand + rightOperand);
+          break;
+        case "-":
+          stack.push(leftOperand - rightOperand);
+          break;
+        case "*":
+          stack.push(leftOperand * rightOperand);
+          break;
+        case "/":
+          if (rightOperand === 0) {
+            throw new Error("TypeError: Division by zero.");
+          }
+          stack.push(leftOperand / rightOperand);
+          break;
+      }
+    }
+  }
+  return stack.pop();
 }
 
 module.exports = {
